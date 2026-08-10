@@ -233,36 +233,30 @@ export default function CodeEditor() {
         }
 
         editor.onDidChangeCursorPosition((e: any) => {
-            if (cursorDebounceRef.current) clearTimeout(cursorDebounceRef.current);
-            cursorDebounceRef.current = setTimeout(() => {
-                if (stompClientRef.current && stompClientRef.current.connected) {
-                    stompClientRef.current.publish({
-                        destination: `/app/cursor/${roomId}`,
-                        body: JSON.stringify({
-                            name: localUser.name,
-                            emoji: localUser.emoji,
-                            lineNumber: e.position.lineNumber,
-                            column: e.position.column
-                        })
-                    });
-                }
-            }, 50); // Debounce cursor broadcasts to prevent network flooding
+            if (stompClientRef.current && stompClientRef.current.connected) {
+                stompClientRef.current.publish({
+                    destination: `/app/cursor/${roomId}`,
+                    body: JSON.stringify({
+                        name: localUser.name,
+                        emoji: localUser.emoji,
+                        lineNumber: e.position.lineNumber,
+                        column: e.position.column
+                    })
+                });
+            }
         });
     }
 
     function handleEditorChange(value: string | undefined) {
         if (isRemoteChange.current || !value || !isSyncEnabledRef.current) return;
 
-        if (codeDebounceRef.current) clearTimeout(codeDebounceRef.current);
-        codeDebounceRef.current = setTimeout(() => {
-            // Broadcast local changes via STOMP fast lane
-            if (stompClientRef.current && stompClientRef.current.connected) {
-                stompClientRef.current.publish({
-                    destination: `/app/typing/${roomId}`,
-                    body: JSON.stringify({ type: 'code', content: value }),
-                });
-            }
-        }, 150); // 150ms debounce groups keystrokes together smoothly
+        // Broadcast local changes via STOMP fast lane
+        if (stompClientRef.current && stompClientRef.current.connected) {
+            stompClientRef.current.publish({
+                destination: `/app/typing/${roomId}`,
+                body: JSON.stringify({ type: 'code', content: value }),
+            });
+        }
     }
 
     const copyShareLink = () => {
