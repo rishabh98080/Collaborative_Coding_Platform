@@ -48,8 +48,8 @@ export default function CodeEditor() {
     const oldDecorationsRef = useRef<string[]>([]);
     const monacoRef = useRef<any>(null);
     
-    const cursorDebounceRef = useRef<NodeJS.Timeout | null>(null);
-    const codeDebounceRef = useRef<NodeJS.Timeout | null>(null);
+    const cursorThrottleRef = useRef<{ lastCall: number; timeout: NodeJS.Timeout | null }>({ lastCall: 0, timeout: null });
+    const codeThrottleRef = useRef<{ lastCall: number; timeout: NodeJS.Timeout | null }>({ lastCall: 0, timeout: null });
 
     const [localUser, setLocalUser] = useState(() => {
         const names = ["Alpha", "Beta", "Gamma", "Delta", "Echo", "Falcon", "Ghost", "Hawk", "Maverick", "Nova"];
@@ -233,16 +233,33 @@ export default function CodeEditor() {
         }
 
         editor.onDidChangeCursorPosition((e: any) => {
-            if (stompClientRef.current && stompClientRef.current.connected) {
-                stompClientRef.current.publish({
-                    destination: `/app/cursor/${roomId}`,
-                    body: JSON.stringify({
-                        name: localUser.name,
-                        emoji: localUser.emoji,
-                        lineNumber: e.position.lineNumber,
-                        column: e.position.column
-                    })
-                });
+            const sendCursor = () => {
+                if (stompClientRef.current && stompClientRef.current.connected) {
+                    stompClientRef.current.publish({
+                        destination: `/app/cursor/${roomId}`,
+                        body: JSON.stringify({
+                            name: localUser.name,
+                            emoji: localUser.emoji,
+                            lineNumber: e.position.lineNumber,
+                            column: e.position.column
+                        })
+                    });
+                }
+            };
+
+            const now = Date.now();
+            const { lastCall, timeout } = cursorThrottleRef.current;
+            const delay = 100; // 100ms throttle restricts speed without waiting for pause
+
+            if (now - lastCall >= delay) {
+                sendCursor();
+                cursorThrottleRef.current.lastCall = Date.now();
+            } else {
+                if (timeout) clearTimeout(timeout);
+                cursorThrottleRef.current.timeout = setTimeout(() => {
+                    sendCursor();
+                    cursorThrottleRef.current.lastCall = Date.now();
+                }, delay - (now - lastCall));
             }
         });
     }
@@ -250,12 +267,28 @@ export default function CodeEditor() {
     function handleEditorChange(value: string | undefined) {
         if (isRemoteChange.current || !value || !isSyncEnabledRef.current) return;
 
-        // Broadcast local changes via STOMP fast lane
-        if (stompClientRef.current && stompClientRef.current.connected) {
-            stompClientRef.current.publish({
-                destination: `/app/typing/${roomId}`,
-                body: JSON.stringify({ type: 'code', content: value }),
-            });
+        const sendCode = () => {
+            if (stompClientRef.current && stompClientRef.current.connected) {
+                stompClientRef.current.publish({
+                    destination: `/app/typing/${roomId}`,
+                    body: JSON.stringify({ type: 'code', content: value }),
+                });
+            }
+        };
+
+        const now = Date.now();
+        const { lastCall, timeout } = codeThrottleRef.current;
+        const delay = 150; // 150ms throttle groups typing continuously
+
+        if (now - lastCall >= delay) {
+            sendCode();
+            codeThrottleRef.current.lastCall = Date.now();
+        } else {
+            if (timeout) clearTimeout(timeout);
+            codeThrottleRef.current.timeout = setTimeout(() => {
+                sendCode();
+                codeThrottleRef.current.lastCall = Date.now();
+            }, delay - (now - lastCall));
         }
     }
 
