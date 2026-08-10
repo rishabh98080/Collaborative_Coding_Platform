@@ -135,3 +135,427 @@ body {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* =========================================================
+   MOBILE / ANDROID RESPONSIVE SYSTEM
+   ========================================================= */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* Prevent iOS/Android browsers from zooming inputs */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+/* Better touch interaction */
+button,
+[role="button"],
+select,
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1024px) {
+  .app-container {
+    width: 100%;
+  }
+
+  .sidebar {
+    width: 260px;
+  }
+
+  .editor-container {
+    min-width: 0;
+  }
+
+  .editor-toolbar {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .editor-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* =========================================================
+   MOBILE / ANDROID
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    min-height: 100dvh;
+  }
+
+  body {
+    overflow: hidden;
+  }
+
+  /* -------------------------------------------------------
+     Main application
+     ------------------------------------------------------- */
+
+  .app-container {
+    width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* -------------------------------------------------------
+     Header
+     ------------------------------------------------------- */
+
+  .header,
+  .navbar,
+  .topbar {
+    min-height: 56px;
+    height: 56px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .header-actions,
+  .navbar-actions,
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  .header button,
+  .navbar button,
+  .topbar button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* Hide secondary desktop controls */
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* -------------------------------------------------------
+     Main workspace
+     ------------------------------------------------------- */
+
+  .main-content,
+  .workspace,
+  .content-area {
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /*
+   * Desktop:
+   * sidebar | editor | terminal
+   *
+   * Mobile:
+   * editor
+   * with panels opened as overlays/drawers
+   */
+
+  .workspace,
+  .editor-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .editor-container,
+  .editor-panel {
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+  }
+
+  /* -------------------------------------------------------
+     Sidebars
+     ------------------------------------------------------- */
+
+  .sidebar,
+  .users-sidebar,
+  .room-sidebar,
+  .file-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    width: min(85vw, 320px);
+    max-width: 320px;
+    background: var(--surface);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+  }
+
+  .sidebar {
+    left: 0;
+  }
+
+  .users-sidebar,
+  .room-sidebar {
+    right: 0;
+  }
+
+  /* -------------------------------------------------------
+     Editor
+     ------------------------------------------------------- */
+
+  .monaco-editor,
+  .monaco-editor .overflow-guard {
+    width: 100% !important;
+  }
+
+  .editor-wrapper {
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .editor-toolbar {
+    width: 100%;
+    min-height: 48px;
+    overflow-x: auto;
+    display: flex;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .editor-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .editor-toolbar button,
+  .editor-toolbar select {
+    flex: 0 0 auto;
+    min-height: 40px;
+  }
+
+  /* -------------------------------------------------------
+     Terminal
+     ------------------------------------------------------- */
+
+  .terminal,
+  .terminal-panel,
+  .console-panel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /*
+   * On mobile the terminal should not permanently consume
+   * half the screen.
+   */
+  .terminal-panel {
+    max-height: 40dvh;
+  }
+
+  /* -------------------------------------------------------
+     Room / collaboration controls
+     ------------------------------------------------------- */
+
+  .room-controls,
+  .collaboration-controls {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .room-controls::-webkit-scrollbar,
+  .collaboration-controls::-webkit-scrollbar {
+    display: none;
+  }
+
+  .room-controls > *,
+  .collaboration-controls > * {
+    flex: 0 0 auto;
+  }
+
+  /* -------------------------------------------------------
+     Forms
+     ------------------------------------------------------- */
+
+  .form-row,
+  .input-row {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .form-row input,
+  .form-row select,
+  .form-row button,
+  .input-row input,
+  .input-row select,
+  .input-row button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* -------------------------------------------------------
+     Cards / dialogs
+     ------------------------------------------------------- */
+
+  .modal,
+  .dialog {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    border-radius: 14px;
+  }
+
+  /* -------------------------------------------------------
+     Mobile bottom navigation
+     ------------------------------------------------------- */
+
+  .mobile-bottom-nav {
+    display: flex;
+    width: 100%;
+    min-height: 58px;
+    padding:
+      6px
+      8px
+      calc(6px + env(safe-area-inset-bottom));
+
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 80;
+  }
+
+  .mobile-bottom-nav button {
+    flex: 1;
+    min-height: 46px;
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 10px;
+  }
+
+  .mobile-bottom-nav button:active {
+    background: var(--surface-secondary);
+  }
+
+  /* -------------------------------------------------------
+     Touch targets
+     ------------------------------------------------------- */
+
+  .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* -------------------------------------------------------
+     Remote cursor
+     ------------------------------------------------------- */
+
+  .remote-cursor-widget {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* =========================================================
+   SMALL ANDROID PHONES
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+  .header,
+  .navbar,
+  .topbar {
+    min-height: 52px;
+    height: 52px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .logo,
+  .brand {
+    max-width: 140px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .editor-toolbar {
+    min-height: 44px;
+  }
+
+  .editor-toolbar button {
+    min-width: 40px;
+    padding: 8px;
+  }
+
+  .terminal-panel {
+    max-height: 35dvh;
+  }
+
+  .modal,
+  .dialog {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+  }
+}
+
+/* =========================================================
+   LANDSCAPE ANDROID
+   ========================================================= */
+
+@media (max-width: 900px) and (orientation: landscape) {
+
+  .header,
+  .navbar,
+  .topbar {
+    min-height: 48px;
+    height: 48px;
+  }
+
+  .mobile-bottom-nav {
+    display: none;
+  }
+
+  .terminal-panel {
+    max-height: 45dvh;
+  }
+}
+
+/* =========================================================
+   DESKTOP DEFAULT
+   ========================================================= */
+
+@media (min-width: 769px) {
+  .mobile-only,
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+}
