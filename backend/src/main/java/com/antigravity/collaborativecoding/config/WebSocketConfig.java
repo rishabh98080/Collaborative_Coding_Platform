@@ -6,9 +6,26 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+
 @Configuration
 @EnableWebSocketMessageBroker
-public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketMessageBrokerConfigurer, WebSocketConfigurer {
+
+    private final SignalingSocketHandler signalingSocketHandler;
+
+    public WebSocketConfig(SignalingSocketHandler signalingSocketHandler) {
+        this.signalingSocketHandler = signalingSocketHandler;
+    }
+
+    @Override
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(signalingSocketHandler, "/api/signaling")
+                .setAllowedOriginPatterns("*");
+    }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
