@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: codesync-backend
+    env: docker
+    rootDir: backend
+    plan: free
+    # The port our Spring Boot application exposes
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: COMPILER_API_KEY
+        sync: false
+      - key: SPRING_REDIS_HOST
+        sync: false
+      - key: SPRING_REDIS_PORT
+        sync: false
+      - key: SPRING_REDIS_PASSWORD
+        sync: false
