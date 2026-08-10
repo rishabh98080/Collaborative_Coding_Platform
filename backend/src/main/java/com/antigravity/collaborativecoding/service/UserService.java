@@ -1,7 +1,7 @@
 package com.antigravity.collaborativecoding.service;
 
-import com.antigravity.collaborativecoding.entity.User;
-import com.antigravity.collaborativecoding.repository.UserRepository;
+import com.antigravity.collaborativecoding.postgres.entity.User;
+import com.antigravity.collaborativecoding.postgres.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
