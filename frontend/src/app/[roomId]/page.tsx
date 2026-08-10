@@ -249,7 +249,7 @@ export default function CodeEditor() {
 
             const now = Date.now();
             const { lastCall, timeout } = cursorThrottleRef.current;
-            const delay = 100; // 100ms throttle restricts speed without waiting for pause
+            const delay = 1000; // 100ms throttle restricts speed without waiting for pause
 
             if (now - lastCall >= delay) {
                 sendCursor();
@@ -278,7 +278,7 @@ export default function CodeEditor() {
 
         const now = Date.now();
         const { lastCall, timeout } = codeThrottleRef.current;
-        const delay = 150; // 150ms throttle groups typing continuously
+        const delay = 1500; // 150ms throttle groups typing continuously
 
         if (now - lastCall >= delay) {
             sendCode();
