@@ -17,8 +17,8 @@ export default function CodeEditor() {
 
     // API base: prefer NEXT_PUBLIC_API_BASE at build time, fallback to current origin in browser
     const API_BASE: string = (typeof window !== 'undefined')
-        ? (process.env.NEXT_PUBLIC_API_BASE || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`)
-        : (process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080');
+        ? (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080')
+        : (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080');
     
     const api = (path: string) => `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
 
@@ -33,6 +33,7 @@ export default function CodeEditor() {
     const [chatMessages, setChatMessages] = useState<any[]>([]);
     const [chatInput, setChatInput] = useState('');
     const [remoteCursors, setRemoteCursors] = useState<Record<string, { name: string, emoji: string, lineNumber: number, column: number }>>({});
+    const [mobileTab, setMobileTab] = useState<'editor' | 'terminal' | 'chat'>('editor');
 
     const isSyncEnabledRef = useRef(true);
     const [isSyncEnabled, setIsSyncEnabledState] = useState(true);
@@ -430,42 +431,25 @@ export default function CodeEditor() {
     const langInfo = getLanguageInfo(language);
 
     return (
-        <div className={theme !== 'light' ? 'dark-theme' : ''} style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
+        <div className={`app-container flex flex-col h-screen bg-[var(--background)] ${theme !== 'light' ? 'dark-theme' : ''}`}>
             {/* Top Navigation */}
-            <header style={{
-                height: '72px',
-                padding: '0 24px',
-                background: 'var(--surface)',
-                borderBottom: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                zIndex: 10
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', letterSpacing: '-0.5px' }}>
-                        CodeSync <span style={{ color: 'var(--border)', margin: '0 8px' }}>|</span>
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontFamily: 'var(--font-mono)' }}>
+            <header className="flex items-center justify-between h-[60px] md:h-[72px] px-4 md:px-6 bg-[var(--surface)] border-b border-[var(--border)] text-[var(--text-primary)] z-10 shrink-0 gap-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                <div className="flex items-center gap-4 shrink-0">
+                    <h3 className="m-0 text-lg font-semibold tracking-tight flex items-center">
+                        CodeSync <span className="text-[var(--border)] mx-2">|</span>
+                        <span className="text-[var(--text-secondary)] text-sm font-mono">
                             {roomId?.substring(0, 8).toUpperCase()}
                         </span>
-                        <button onClick={copyShareLink} style={{ marginLeft: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} title="Copy URL">
+                        <button onClick={copyShareLink} className="ml-2 bg-transparent border-none cursor-pointer text-[var(--text-muted)]" title="Copy URL">
                             ⧉
                         </button>
                     </h3>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '8px', paddingLeft: '16px', borderLeft: '1px solid var(--border)' }}>
+                    <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-4 border-l border-[var(--border)]">
                         {activeUsers.map(user => (
                             <div
                                 key={user.id}
-                                className="user-avatar"
-                                style={{
-                                    position: 'relative',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    width: '28px', height: '28px', borderRadius: '50%',
-                                    background: 'var(--surface-secondary)', border: '1px solid var(--border)',
-                                    fontSize: '14px', cursor: 'help'
-                                }}
+                                className="user-avatar relative flex items-center justify-center w-7 h-7 rounded-full bg-[var(--surface-secondary)] border border-[var(--border)] text-sm cursor-help"
                             >
                                 {user.emoji}
                                 <span className="user-tooltip">{user.name}</span>
@@ -474,11 +458,11 @@ export default function CodeEditor() {
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div className="flex gap-3 items-center shrink-0">
                     <select
                         value={language}
                         onChange={handleLanguageChange}
-                        style={{ padding: '6px 12px', borderRadius: '8px', background: 'var(--surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', outline: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}
+                        className="py-1.5 px-3 rounded-lg bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-[var(--border)] outline-none cursor-pointer text-[13px] font-medium"
                     >
                         <option value="javascript">JavaScript</option>
                         <option value="typescript">TypeScript</option>
@@ -499,7 +483,7 @@ export default function CodeEditor() {
                     <select
                         value={theme}
                         onChange={(e) => setTheme(e.target.value)}
-                        style={{ padding: '6px 12px', borderRadius: '8px', background: 'var(--surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)', outline: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}
+                        className="py-1.5 px-3 rounded-lg bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-[var(--border)] outline-none cursor-pointer text-[13px] font-medium"
                     >
                         <option value="light">Light Theme</option>
                         <option value="vs-dark">Dark Theme</option>
@@ -507,132 +491,67 @@ export default function CodeEditor() {
                     </select>
                 </div>
 
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div className="flex gap-4 items-center shrink-0">
                     <button
                         onClick={toggleSync}
-                        style={{
-                            background: 'transparent',
-                            color: isSyncEnabled ? 'var(--success)' : 'var(--text-muted)',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                        }}>
-                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isSyncEnabled ? 'var(--success)' : 'var(--border)' }}></span>
+                        className={`bg-transparent border-none cursor-pointer text-[13px] font-semibold flex items-center gap-1.5 ${isSyncEnabled ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}`}>
+                        <span className={`w-2 h-2 rounded-full ${isSyncEnabled ? 'bg-[var(--success)]' : 'bg-[var(--border)]'}`}></span>
                         Sync: {isSyncEnabled ? 'ON' : 'OFF'}
                     </button>
 
                     <button
                         onClick={runCode}
                         disabled={isRunning || language === 'plaintext'}
-                        style={{
-                            background: (isRunning || language === 'plaintext') ? 'var(--surface-secondary)' : 'var(--accent)',
-                            color: (isRunning || language === 'plaintext') ? 'var(--text-muted)' : '#fff',
-                            border: 'none',
-                            padding: '8px 20px',
-                            borderRadius: '10px',
-                            cursor: (isRunning || language === 'plaintext') ? 'not-allowed' : 'pointer',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            transition: 'background 0.14s ease'
-                        }}>
+                        className={`border-none py-2 px-5 rounded-lg text-sm font-semibold transition-colors duration-150 ${isRunning || language === 'plaintext' ? 'bg-[var(--surface-secondary)] text-[var(--text-muted)] cursor-not-allowed' : 'bg-[var(--accent)] text-white cursor-pointer'}`}>
                         {isRunning ? 'Running...' : 'Run Code'}
                     </button>
 
                     <button
                         onClick={copyShareLink}
-                        style={{
-                            background: 'var(--surface)',
-                            color: 'var(--text-primary)',
-                            border: '1px solid var(--border)',
-                            padding: '8px 16px',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            transition: 'all 0.14s ease'
-                        }}>
+                        className="hidden md:block bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border)] py-2 px-4 rounded-lg cursor-pointer text-sm font-medium transition-colors duration-150">
                         {copied ? 'Copied' : '↗ Share URL'}
                     </button>
 
                     <button
                         onClick={handlePastConvo}
-                        style={{
-                            background: 'var(--surface-secondary)',
-                            color: 'var(--accent)',
-                            border: '1px solid var(--accent)',
-                            padding: '8px 16px',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            transition: 'all 0.14s ease'
-                        }}>
+                        className="hidden md:block bg-[var(--surface-secondary)] text-[var(--accent)] border border-[var(--accent)] py-2 px-4 rounded-lg cursor-pointer text-sm font-semibold transition-colors duration-150">
                         Past Convo
                     </button>
 
                     <button
                         onClick={handleExit}
-                        style={{
-                            background: 'transparent',
-                            color: 'var(--error, #e53935)',
-                            border: '1px solid var(--error, #e53935)',
-                            padding: '8px 16px',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            transition: 'all 0.14s ease'
-                        }}>
+                        className="bg-transparent text-[#e53935] border border-[#e53935] py-2 px-4 rounded-lg cursor-pointer text-sm font-semibold transition-colors duration-150">
                         Exit & Save
                     </button>
                 </div>
             </header>
 
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                {/* Left Navigation Rail */}
-                <aside style={{
-                    width: '72px',
-                    background: 'var(--surface)',
-                    borderRight: '1px solid var(--border)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: '24px 0',
-                    gap: '16px'
-                }}>
-                    <button style={{ width: '44px', height: '44px', borderRadius: '9px', background: 'var(--accent-soft)', color: 'var(--accent)', border: 'none', fontSize: '20px', cursor: 'pointer' }} title="Code">
+            <div className="flex-1 flex overflow-hidden relative">
+                {/* Desktop Left Nav */}
+                <aside className="hidden md:flex flex-col items-center w-[72px] bg-[var(--surface)] border-r border-[var(--border)] py-6 gap-4 shrink-0">
+                    <button className="w-11 h-11 rounded-lg bg-[var(--accent-soft)] text-[var(--accent)] border-none text-xl cursor-pointer" title="Code">
                         ⌨️
                     </button>
-                    <button style={{ width: '44px', height: '44px', borderRadius: '9px', background: 'transparent', color: 'var(--text-secondary)', border: 'none', fontSize: '20px', cursor: 'pointer', visibility: 'hidden' }} title="Files">
+                    <button className="w-11 h-11 rounded-lg bg-transparent text-[var(--text-secondary)] border-none text-xl cursor-pointer invisible" title="Files">
                         📁
                     </button>
-                    <button style={{ width: '44px', height: '44px', borderRadius: '9px', background: 'transparent', color: 'var(--text-secondary)', border: 'none', fontSize: '20px', cursor: 'pointer', visibility: 'hidden' }} title="Settings">
+                    <button className="w-11 h-11 rounded-lg bg-transparent text-[var(--text-secondary)] border-none text-xl cursor-pointer invisible" title="Settings">
                         ⚙️
                     </button>
                 </aside>
 
-                {/* Main Workspace (Editor + STDIN/STDOUT) */}
-                <div style={{ flex: '1 1 70%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--background)' }}>
-                    <div style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column' }}>
-                        {/* Editor Header */}
-                        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '16px' }}>
-                            <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{langInfo.icon}</span> {langInfo.ext}
+                {/* Middle Column (Editor + Terminal) */}
+                <div className={`flex-1 flex-col min-w-0 overflow-hidden bg-[var(--background)] ${(mobileTab === 'editor' || mobileTab === 'terminal') ? 'flex' : 'hidden md:flex'}`}>
+                    
+                    {/* Editor Wrapper */}
+                    <div className={`flex-1 p-4 md:p-6 flex-col min-h-0 ${mobileTab === 'editor' ? 'flex' : 'hidden md:flex'}`}>
+                        <div className="flex border-b border-[var(--border)] pb-2 mb-4 shrink-0">
+                            <div className="text-[13px] font-medium text-[var(--text-primary)] flex items-center gap-2">
+                                <span className="text-[var(--accent)] font-mono">{langInfo.icon}</span> {langInfo.ext}
                             </div>
                         </div>
 
-                        <div style={{
-                            flex: 1,
-                            borderRadius: '16px',
-                            overflow: 'hidden',
-                            border: '1px solid var(--border)',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.025), 0 8px 24px rgba(0,0,0,0.025)',
-                            background: 'var(--surface)'
-                        }}>
+                        <div className="flex-1 rounded-2xl overflow-hidden border border-[var(--border)] shadow-sm bg-[var(--surface)]">
                             <Editor
                                 height="100%"
                                 language={language}
@@ -654,28 +573,19 @@ export default function CodeEditor() {
                         </div>
                     </div>
 
-                    <div style={{ height: '30%', display: 'flex', flexDirection: 'row', padding: '0 24px 24px 24px', gap: '24px' }}>
-                        {/* Tabbed Terminal Panel */}
-                        <div style={{
-                            flex: 1,
-                            background: 'var(--surface)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '16px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            overflow: 'hidden',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.025)'
-                        }}>
-                            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', gap: '16px' }}>
+                    {/* Terminal Wrapper */}
+                    <div className={`p-4 pt-0 md:px-6 md:pb-6 md:pt-0 shrink-0 flex-col md:h-[30%] ${mobileTab === 'terminal' ? 'flex flex-1 pt-4' : 'hidden md:flex'}`}>
+                        <div className="flex-1 flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+                            <div className="py-3 px-4 border-b border-[var(--border-subtle)] flex gap-4">
                                 <button
                                     onClick={() => setTerminalMode('input')}
-                                    style={{ background: 'transparent', border: 'none', color: terminalMode === 'input' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '12px', fontWeight: '700', letterSpacing: '0.5px', cursor: 'pointer', padding: 0 }}
+                                    className={`bg-transparent border-none text-xs font-bold tracking-wide cursor-pointer p-0 ${terminalMode === 'input' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
                                 >
                                     STDIN (INPUT)
                                 </button>
                                 <button
                                     onClick={() => setTerminalMode('output')}
-                                    style={{ background: 'transparent', border: 'none', color: terminalMode === 'output' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '12px', fontWeight: '700', letterSpacing: '0.5px', cursor: 'pointer', padding: 0 }}
+                                    className={`bg-transparent border-none text-xs font-bold tracking-wide cursor-pointer p-0 ${terminalMode === 'output' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
                                 >
                                     OUTPUT
                                 </button>
@@ -686,10 +596,10 @@ export default function CodeEditor() {
                                     value={stdin}
                                     onChange={(e) => setStdin(e.target.value)}
                                     placeholder="Enter your upfront standard input here..."
-                                    style={{ flex: 1, padding: '16px', background: 'transparent', color: 'var(--text-primary)', border: 'none', resize: 'none', outline: 'none', fontFamily: 'var(--font-mono)', fontSize: '13px', lineHeight: '1.5' }}
+                                    className="flex-1 p-4 bg-transparent text-[var(--text-primary)] border-none resize-none outline-none font-mono text-[13px] leading-relaxed"
                                 />
                             ) : (
-                                <div style={{ flex: 1, padding: '16px', overflowY: 'auto', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', fontSize: '13px', lineHeight: '1.5' }}>
+                                <div className="flex-1 p-4 overflow-y-auto font-mono text-[var(--text-secondary)] whitespace-pre-wrap text-[13px] leading-relaxed">
                                     {output || 'No output yet'}
                                 </div>
                             )}
@@ -698,33 +608,20 @@ export default function CodeEditor() {
                 </div>
 
                 {/* Chat Sidebar */}
-                <div style={{
-                    width: '320px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: 'var(--surface)',
-                    borderLeft: '1px solid var(--border)'
-                }}>
-                    <div style={{ padding: '24px 24px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>PEER CHAT</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }}></span>
-                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{activeUsers.length} Online</span>
+                <div className={`flex-col w-full md:w-[320px] bg-[var(--surface)] border-l border-[var(--border)] shrink-0 ${mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
+                    <div className="p-6 pb-4 flex justify-between items-center shrink-0">
+                        <span className="text-[13px] font-semibold text-[var(--text-primary)]">PEER CHAT</span>
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                            <span className="text-xs text-[var(--text-secondary)]">{activeUsers.length} Online</span>
                         </div>
                     </div>
 
-                    <div style={{ padding: '0 24px 16px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <div className="px-6 pb-4 flex gap-1.5 flex-wrap shrink-0">
                         {activeUsers.map(user => (
                             <div
                                 key={user.id}
-                                className="user-avatar"
-                                style={{
-                                    position: 'relative',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    width: '28px', height: '28px', borderRadius: '50%',
-                                    background: 'var(--surface-secondary)', border: '1px solid var(--border-subtle)',
-                                    fontSize: '14px', cursor: 'help'
-                                }}
+                                className="user-avatar relative flex items-center justify-center w-7 h-7 rounded-full bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-sm cursor-help"
                             >
                                 {user.emoji}
                                 <span className="user-tooltip">{user.name}</span>
@@ -732,20 +629,20 @@ export default function CodeEditor() {
                         ))}
                     </div>
 
-                    <div style={{ flex: 1, padding: '0 24px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="flex-1 px-6 pb-6 overflow-y-auto flex flex-col gap-4">
                         {chatMessages.length === 0 ? (
-                            <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '40px', fontSize: '13px' }}>
+                            <div className="text-[var(--text-muted)] text-center mt-10 text-[13px]">
                                 No messages yet<br /><br />Say hello and start coding together.
                             </div>
                         ) : (
                             chatMessages.map((msg, i) => (
-                                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                                        <span style={{ fontSize: '14px' }}>{msg.emoji}</span>
-                                        <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>{msg.sender}</span>
-                                        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{msg.timestamp}</span>
+                                <div key={i} className="flex flex-col gap-1">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-sm">{msg.emoji}</span>
+                                        <span className="text-xs font-semibold text-[var(--text-primary)]">{msg.sender}</span>
+                                        <span className="text-[var(--text-muted)] text-[11px]">{msg.timestamp}</span>
                                     </div>
-                                    <div style={{ color: 'var(--text-primary)', fontSize: '13px', background: 'var(--surface-secondary)', padding: '10px 12px', borderRadius: '0 12px 12px 12px', wordBreak: 'break-word', lineHeight: '1.4' }}>
+                                    <div className="text-[var(--text-primary)] text-[13px] bg-[var(--surface-secondary)] py-2.5 px-3 rounded-[0_12px_12px_12px] break-words leading-relaxed">
                                         {msg.text}
                                     </div>
                                 </div>
@@ -754,20 +651,46 @@ export default function CodeEditor() {
                         <div ref={messagesEndRef} />
                     </div>
 
-                    <form onSubmit={sendChatMessage} style={{ padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px' }}>
+                    <form onSubmit={sendChatMessage} className="p-4 md:px-6 md:py-4 border-t border-[var(--border-subtle)] flex gap-2 shrink-0">
                         <input
                             type="text"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
                             placeholder="Type a message..."
-                            style={{ flex: 1, padding: '10px 12px', background: 'var(--surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', outline: 'none', fontSize: '13px' }}
+                            className="flex-1 py-2.5 px-3 bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg outline-none text-[13px]"
                         />
-                        <button type="submit" disabled={!chatInput.trim()} style={{ background: chatInput.trim() ? 'var(--accent)' : 'var(--surface-secondary)', color: chatInput.trim() ? '#fff' : 'var(--text-muted)', border: 'none', borderRadius: '10px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: chatInput.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.14s ease' }}>
+                        <button type="submit" disabled={!chatInput.trim()} className={`border-none rounded-lg w-9 h-9 flex items-center justify-center transition-colors duration-150 ${chatInput.trim() ? 'bg-[var(--accent)] text-white cursor-pointer' : 'bg-[var(--surface-secondary)] text-[var(--text-muted)] cursor-not-allowed'}`}>
                             ↑
                         </button>
                     </form>
                 </div>
             </div>
+
+            {/* Mobile Bottom Navigation */}
+            <div className="md:hidden flex w-full min-h-[58px] bg-[var(--surface)] border-t border-[var(--border)] z-50 p-1.5 pb-[calc(6px+env(safe-area-inset-bottom))] gap-1.5 shrink-0">
+                <button 
+                    onClick={() => setMobileTab('editor')}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-[10px] text-xs font-medium border-none py-1 transition-colors duration-150 ${mobileTab === 'editor' ? 'text-[var(--accent)] bg-[var(--accent-soft)]' : 'text-[var(--text-secondary)] bg-transparent'}`}
+                >
+                    <span className="text-lg">⌨️</span>
+                    Code
+                </button>
+                <button 
+                    onClick={() => setMobileTab('terminal')}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-[10px] text-xs font-medium border-none py-1 transition-colors duration-150 ${mobileTab === 'terminal' ? 'text-[var(--accent)] bg-[var(--accent-soft)]' : 'text-[var(--text-secondary)] bg-transparent'}`}
+                >
+                    <span className="text-lg">🖥️</span>
+                    Run
+                </button>
+                <button 
+                    onClick={() => setMobileTab('chat')}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-[10px] text-xs font-medium border-none py-1 transition-colors duration-150 ${mobileTab === 'chat' ? 'text-[var(--accent)] bg-[var(--accent-soft)]' : 'text-[var(--text-secondary)] bg-transparent'}`}
+                >
+                    <span className="text-lg">💬</span>
+                    Chat
+                </button>
+            </div>
+
             {authContext && (
                 <AuthModal
                     onClose={() => setAuthContext(null)}
