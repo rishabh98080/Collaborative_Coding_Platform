@@ -6,6 +6,9 @@ import Editor from '@monaco-editor/react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import AuthModal from '@/components/AuthModal';
+import * as Y from 'yjs';
+import { WebrtcProvider } from 'y-webrtc';
+import { MonacoBinding } from 'y-monaco';
 
 export default function CodeEditor() {
     const params = useParams();
@@ -13,7 +16,9 @@ export default function CodeEditor() {
 
     const editorRef = useRef<any>(null);
     const stompClientRef = useRef<Client | null>(null);
-    const isRemoteChange = useRef<boolean>(false);
+    const ydocRef = useRef<Y.Doc | null>(null);
+    const providerRef = useRef<WebrtcProvider | null>(null);
+    const bindingRef = useRef<MonacoBinding | null>(null);
 
     // API base: prefer NEXT_PUBLIC_API_BASE at build time, fallback to current origin in browser
     const API_BASE: string = (typeof window !== 'undefined')
@@ -32,7 +37,6 @@ export default function CodeEditor() {
     const [activeUsers, setActiveUsers] = useState<any[]>([]);
     const [chatMessages, setChatMessages] = useState<any[]>([]);
     const [chatInput, setChatInput] = useState('');
-    const [remoteCursors, setRemoteCursors] = useState<Record<string, { name: string, emoji: string, lineNumber: number, column: number }>>({});
     const [mobileTab, setMobileTab] = useState<'editor' | 'terminal' | 'chat'>('editor');
 
     const isSyncEnabledRef = useRef(true);
@@ -45,11 +49,7 @@ export default function CodeEditor() {
     };
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const oldDecorationsRef = useRef<string[]>([]);
     const monacoRef = useRef<any>(null);
-    
-    const cursorThrottleRef = useRef<{ lastCall: number; timeout: NodeJS.Timeout | null }>({ lastCall: 0, timeout: null });
-    const codeThrottleRef = useRef<{ lastCall: number; timeout: NodeJS.Timeout | null }>({ lastCall: 0, timeout: null });
 
     const [localUser, setLocalUser] = useState(() => {
         const names = ["Alpha", "Beta", "Gamma", "Delta", "Echo", "Falcon", "Ghost", "Hawk", "Maverick", "Nova"];
@@ -95,27 +95,6 @@ export default function CodeEditor() {
     }, [chatMessages]);
 
     useEffect(() => {
-        if (!editorRef.current || !monacoRef.current) return;
-
-        try {
-            const decorations = Object.values(remoteCursors).map(cursor => ({
-                range: new monacoRef.current.Range(cursor.lineNumber, cursor.column, cursor.lineNumber, cursor.column),
-                options: {
-                    className: 'remote-cursor-line',
-                    after: {
-                        content: ` ${cursor.emoji} ${cursor.name} `,
-                        inlineClassName: 'remote-cursor-widget',
-                    }
-                }
-            }));
-
-            oldDecorationsRef.current = editorRef.current.deltaDecorations(oldDecorationsRef.current, decorations);
-        } catch (e) {
-            console.error("Failed to render cursor", e);
-        }
-    }, [remoteCursors]);
-
-    useEffect(() => {
         if (!roomId) return;
 
         // Fetch initial memory state for late joiners/refreshes
@@ -142,7 +121,7 @@ export default function CodeEditor() {
             debug: (str) => console.log(str),
             onConnect: () => {
                 console.log('Connected to WebSocket!');
-                // Subscribe to room topic
+                // Subscribe to room topic for language changes only
                 stompClient.subscribe(`/topic/document/${roomId}`, (message) => {
                     const payload = JSON.parse(message.body);
 
@@ -150,40 +129,6 @@ export default function CodeEditor() {
                         if (payload.language && payload.language !== language) {
                             if (!isSyncEnabledRef.current) return;
                             setLanguage(payload.language);
-                        }
-                    } else if (payload.type === 'code' || !payload.type) {
-                        if (!isSyncEnabledRef.current) return;
-
-                        if (editorRef.current) {
-                            const currentVal = editorRef.current.getValue();
-                            if (payload.content !== currentVal) {
-                                isRemoteChange.current = true;
-
-                                // Preserve selections (includes cursor position)
-                                const selections = editorRef.current.getSelections();
-
-                                // Update content without destroying undo stack and minimizing flicker
-                                const model = editorRef.current.getModel();
-                                if (model) {
-                                    model.pushEditOperations(
-                                        [],
-                                        [{
-                                            range: model.getFullModelRange(),
-                                            text: payload.content
-                                        }],
-                                        () => null
-                                    );
-                                } else {
-                                    editorRef.current.setValue(payload.content);
-                                }
-
-                                // Restore selections
-                                if (selections) {
-                                    editorRef.current.setSelections(selections);
-                                }
-
-                                isRemoteChange.current = false;
-                            }
                         }
                     }
                 });
@@ -199,18 +144,6 @@ export default function CodeEditor() {
                     const chatMsg = JSON.parse(message.body);
                     setChatMessages(prev => [...prev, chatMsg]);
                 });
-
-                // Subscribe to cursors
-                stompClient.subscribe(`/topic/cursor/${roomId}`, (message) => {
-                    const cursorMsg = JSON.parse(message.body);
-                    console.log("Received remote cursor from:", cursorMsg.name, "Local is:", localUser.name);
-                    if (cursorMsg.name !== localUser.name) {
-                        setRemoteCursors(prev => ({
-                            ...prev,
-                            [cursorMsg.name]: cursorMsg
-                        }));
-                    }
-                });
             },
         });
 
@@ -222,74 +155,54 @@ export default function CodeEditor() {
         };
     }, [roomId]);
 
+    useEffect(() => {
+        return () => {
+            if (bindingRef.current) bindingRef.current.destroy();
+            if (providerRef.current) providerRef.current.destroy();
+            if (ydocRef.current) ydocRef.current.destroy();
+        };
+    }, []);
+
     function handleEditorDidMount(editor: any, monaco: any) {
         editorRef.current = editor;
         monacoRef.current = monaco;
 
-        // Inject pre-fetched content if it arrived before the editor finished loading
-        if (initialContentFetched.current) {
-            editor.setValue(initialContentFetched.current);
+        // Initialize Yjs Document and WebRTC Provider
+        const ydoc = new Y.Doc();
+        ydocRef.current = ydoc;
+
+        // The signaling server URL is configured to point to our Spring Boot backend
+        const signalingUrl = (typeof window !== 'undefined')
+            ? (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE || `ws://${window.location.hostname}:8080`).replace(/^http/, 'ws') + '/api/signaling'
+            : 'ws://localhost:8080/api/signaling';
+            
+        const provider = new WebrtcProvider(roomId, ydoc, { 
+            signaling: [signalingUrl] 
+        });
+        providerRef.current = provider;
+
+        // Set local user awareness state for cursor tracking
+        provider.awareness.setLocalStateField('user', {
+            name: localUser.name,
+            color: '#30bced', // default color, could be generated based on name
+            emoji: localUser.emoji
+        });
+
+        // Bind Monaco to Yjs
+        const ytext = ydoc.getText('monaco');
+        const binding = new MonacoBinding(ytext, editorRef.current.getModel(), new Set([editorRef.current]), provider.awareness);
+        bindingRef.current = binding;
+
+        // Inject pre-fetched content if it arrived before the editor finished loading and Yjs document is empty
+        if (initialContentFetched.current && ytext.toString() === '') {
+            ytext.insert(0, initialContentFetched.current);
             initialContentFetched.current = null;
         }
-
-        editor.onDidChangeCursorPosition((e: any) => {
-            const sendCursor = () => {
-                if (stompClientRef.current && stompClientRef.current.connected) {
-                    stompClientRef.current.publish({
-                        destination: `/app/cursor/${roomId}`,
-                        body: JSON.stringify({
-                            name: localUser.name,
-                            emoji: localUser.emoji,
-                            lineNumber: e.position.lineNumber,
-                            column: e.position.column
-                        })
-                    });
-                }
-            };
-
-            const now = Date.now();
-            const { lastCall, timeout } = cursorThrottleRef.current;
-            const delay = 1000; // 100ms throttle restricts speed without waiting for pause
-
-            if (now - lastCall >= delay) {
-                sendCursor();
-                cursorThrottleRef.current.lastCall = Date.now();
-            } else {
-                if (timeout) clearTimeout(timeout);
-                cursorThrottleRef.current.timeout = setTimeout(() => {
-                    sendCursor();
-                    cursorThrottleRef.current.lastCall = Date.now();
-                }, delay - (now - lastCall));
-            }
-        });
     }
 
+    // handleEditorChange is now handled entirely by y-monaco. We only keep it around for the interface if needed.
     function handleEditorChange(value: string | undefined) {
-        if (isRemoteChange.current || !value || !isSyncEnabledRef.current) return;
-
-        const sendCode = () => {
-            if (stompClientRef.current && stompClientRef.current.connected) {
-                stompClientRef.current.publish({
-                    destination: `/app/typing/${roomId}`,
-                    body: JSON.stringify({ type: 'code', content: value }),
-                });
-            }
-        };
-
-        const now = Date.now();
-        const { lastCall, timeout } = codeThrottleRef.current;
-        const delay = 1500; // 150ms throttle groups typing continuously
-
-        if (now - lastCall >= delay) {
-            sendCode();
-            codeThrottleRef.current.lastCall = Date.now();
-        } else {
-            if (timeout) clearTimeout(timeout);
-            codeThrottleRef.current.timeout = setTimeout(() => {
-                sendCode();
-                codeThrottleRef.current.lastCall = Date.now();
-            }, delay - (now - lastCall));
-        }
+        // Yjs automatically syncs text changes. No STOMP publishing needed.
     }
 
     const copyShareLink = () => {
