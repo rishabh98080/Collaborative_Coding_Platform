@@ -47,6 +47,9 @@ export default function CodeEditor() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const oldDecorationsRef = useRef<string[]>([]);
     const monacoRef = useRef<any>(null);
+    
+    const cursorDebounceRef = useRef<NodeJS.Timeout | null>(null);
+    const codeDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
     const [localUser, setLocalUser] = useState(() => {
         const names = ["Alpha", "Beta", "Gamma", "Delta", "Echo", "Falcon", "Ghost", "Hawk", "Maverick", "Nova"];
@@ -156,14 +159,27 @@ export default function CodeEditor() {
                             if (payload.content !== currentVal) {
                                 isRemoteChange.current = true;
 
-                                // Preserve cursor position
-                                const position = editorRef.current.getPosition();
+                                // Preserve selections (includes cursor position)
+                                const selections = editorRef.current.getSelections();
 
-                                editorRef.current.setValue(payload.content);
+                                // Update content without destroying undo stack and minimizing flicker
+                                const model = editorRef.current.getModel();
+                                if (model) {
+                                    model.pushEditOperations(
+                                        [],
+                                        [{
+                                            range: model.getFullModelRange(),
+                                            text: payload.content
+                                        }],
+                                        () => null
+                                    );
+                                } else {
+                                    editorRef.current.setValue(payload.content);
+                                }
 
-                                // Restore cursor position
-                                if (position) {
-                                    editorRef.current.setPosition(position);
+                                // Restore selections
+                                if (selections) {
+                                    editorRef.current.setSelections(selections);
                                 }
 
                                 isRemoteChange.current = false;
@@ -217,30 +233,36 @@ export default function CodeEditor() {
         }
 
         editor.onDidChangeCursorPosition((e: any) => {
-            if (stompClientRef.current && stompClientRef.current.connected) {
-                stompClientRef.current.publish({
-                    destination: `/app/cursor/${roomId}`,
-                    body: JSON.stringify({
-                        name: localUser.name,
-                        emoji: localUser.emoji,
-                        lineNumber: e.position.lineNumber,
-                        column: e.position.column
-                    })
-                });
-            }
+            if (cursorDebounceRef.current) clearTimeout(cursorDebounceRef.current);
+            cursorDebounceRef.current = setTimeout(() => {
+                if (stompClientRef.current && stompClientRef.current.connected) {
+                    stompClientRef.current.publish({
+                        destination: `/app/cursor/${roomId}`,
+                        body: JSON.stringify({
+                            name: localUser.name,
+                            emoji: localUser.emoji,
+                            lineNumber: e.position.lineNumber,
+                            column: e.position.column
+                        })
+                    });
+                }
+            }, 50); // Debounce cursor broadcasts to prevent network flooding
         });
     }
 
     function handleEditorChange(value: string | undefined) {
         if (isRemoteChange.current || !value || !isSyncEnabledRef.current) return;
 
-        // Broadcast local changes via STOMP fast lane
-        if (stompClientRef.current && stompClientRef.current.connected) {
-            stompClientRef.current.publish({
-                destination: `/app/typing/${roomId}`,
-                body: JSON.stringify({ type: 'code', content: value }),
-            });
-        }
+        if (codeDebounceRef.current) clearTimeout(codeDebounceRef.current);
+        codeDebounceRef.current = setTimeout(() => {
+            // Broadcast local changes via STOMP fast lane
+            if (stompClientRef.current && stompClientRef.current.connected) {
+                stompClientRef.current.publish({
+                    destination: `/app/typing/${roomId}`,
+                    body: JSON.stringify({ type: 'code', content: value }),
+                });
+            }
+        }, 150); // 150ms debounce groups keystrokes together smoothly
     }
 
     const copyShareLink = () => {
