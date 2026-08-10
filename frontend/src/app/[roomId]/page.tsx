@@ -15,6 +15,13 @@ export default function CodeEditor() {
     const stompClientRef = useRef<Client | null>(null);
     const isRemoteChange = useRef<boolean>(false);
 
+    // API base: prefer NEXT_PUBLIC_API_BASE at build time, fallback to current origin in browser
+    const API_BASE: string = (typeof window !== 'undefined')
+        ? (process.env.NEXT_PUBLIC_API_BASE || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`)
+        : (process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080');
+    
+    const api = (path: string) => `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+
     const [copied, setCopied] = useState(false);
     const [language, setLanguage] = useState('javascript');
     const [theme, setTheme] = useState('light');
@@ -65,7 +72,6 @@ export default function CodeEditor() {
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             if (!isAuthenticated) {
-                // Trigger the browser's native confirmation dialog
                 e.preventDefault();
                 e.returnValue = '';
             }
@@ -109,7 +115,7 @@ export default function CodeEditor() {
         if (!roomId) return;
 
         // Fetch initial memory state for late joiners/refreshes
-        fetch(`http://localhost:8080/api/room/${roomId}`)
+        fetch(api(`/api/room/${roomId}`))
             .then(res => res.json())
             .then(data => {
                 if (data.language) {
@@ -126,7 +132,7 @@ export default function CodeEditor() {
             .catch(err => console.error('Failed to fetch initial room state', err));
 
         // Initialize STOMP / SockJS client connection
-        const socket = new SockJS('http://localhost:8080/ws');
+        const socket = new SockJS(api('/ws'));
         const stompClient = new Client({
             webSocketFactory: () => socket,
             debug: (str) => console.log(str),
@@ -284,7 +290,7 @@ export default function CodeEditor() {
         const sourceCode = editorRef.current.getValue();
 
         try {
-            const res = await fetch('http://localhost:8080/api/execute', {
+            const res = await fetch(api('/api/execute'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -309,7 +315,7 @@ export default function CodeEditor() {
 
     const handleLogout = async () => {
         try {
-            await fetch('http://localhost:8080/api/auth/logout', { method: 'POST', credentials: 'include' });
+            await fetch(api('/api/auth/logout'), { method: 'POST', credentials: 'include' });
         } catch (e) {
             console.error("Logout failed", e);
         }
@@ -328,7 +334,7 @@ export default function CodeEditor() {
         if (currentContext === 'load') {
             // Try to fetch last session
             try {
-                const res = await fetch('http://localhost:8080/api/sessions/last', {
+                const res = await fetch(api('/api/sessions/last'), {
                     credentials: 'include'
                 });
                 if (res.ok) {
@@ -343,7 +349,6 @@ export default function CodeEditor() {
             } catch (e) {
                 console.error("Could not fetch past session", e);
             }
-            await handleLogout();
         } else if (currentContext === 'save') {
             // Save the session right after login/register
             await saveSession();
@@ -354,7 +359,7 @@ export default function CodeEditor() {
         const currentCode = editorRef.current?.getValue() || '';
         const transcript = JSON.stringify(chatMessages);
         try {
-            await fetch('http://localhost:8080/api/sessions/last', {
+            await fetch(api('/api/sessions/last'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -378,7 +383,7 @@ export default function CodeEditor() {
 
         // Try to fetch last session immediately if already authenticated
         try {
-            const res = await fetch('http://localhost:8080/api/sessions/last', {
+            const res = await fetch(api('/api/sessions/last'), {
                 credentials: 'include'
             });
             if (res.ok) {
@@ -393,7 +398,6 @@ export default function CodeEditor() {
         } catch (e) {
             console.error("Could not fetch past session", e);
         }
-        await handleLogout();
     };
 
     const handleExit = () => {
@@ -443,7 +447,7 @@ export default function CodeEditor() {
                     <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', letterSpacing: '-0.5px' }}>
                         CodeSync <span style={{ color: 'var(--border)', margin: '0 8px' }}>|</span>
                         <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontFamily: 'var(--font-mono)' }}>
-                            {roomId.substring(0, 8).toUpperCase()}
+                            {roomId?.substring(0, 8).toUpperCase()}
                         </span>
                         <button onClick={copyShareLink} style={{ marginLeft: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} title="Copy URL">
                             ⧉
@@ -481,7 +485,6 @@ export default function CodeEditor() {
                         <option value="python">Python</option>
                         <option value="java">Java</option>
                         <option value="cpp">C++</option>
-
                         <option value="c">C</option>
                         <option value="csharp">C#</option>
                         <option value="fsharp">F#</option>
