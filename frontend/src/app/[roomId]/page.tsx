@@ -397,8 +397,9 @@ export default function CodeEditor() {
             {/* Top Navigation */}
             <header className="flex items-center justify-between h-[60px] md:h-[72px] px-4 md:px-6 bg-[var(--surface)] border-b border-[var(--border)] text-[var(--text-primary)] z-10 shrink-0 gap-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                 <div className="flex items-center gap-4 shrink-0">
+                    <img height = "70px" width = "70px" src = "favicon.ico"/>
                     <h3 className="m-0 text-lg font-semibold tracking-tight flex items-center">
-                    <img height = "70px" width = "70px" src = "favicon.ico"></>CodeSync <span className="text-[var(--border)] mx-2">|</span>
+                        CodeSync <span className="text-[var(--border)] mx-2">|</span>
                         <span className="text-[var(--text-secondary)] text-sm font-mono">
                             {roomId?.substring(0, 8).toUpperCase()}
                         </span>
